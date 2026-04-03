@@ -52,7 +52,7 @@ export class MatchService {
       .where(eq(wallets.userId, player1Id))
 
     if (!wallet) {
-      throw new InsufficientBalanceError()
+      throw new InsufficientBalanceError(0, 0)
     }
 
     // Calculate available balance (balance - active escrow holds)
@@ -72,7 +72,7 @@ export class MatchService {
     const availableBalance = wallet.balance - escrowAmount
 
     if (availableBalance < entryFee) {
-      throw new InsufficientBalanceError()
+      throw new InsufficientBalanceError(entryFee, availableBalance)
     }
 
     // Create match in database
@@ -158,7 +158,7 @@ export class MatchService {
       .where(eq(wallets.userId, player2Id))
 
     if (!wallet) {
-      throw new InsufficientBalanceError()
+      throw new InsufficientBalanceError(0, 0)
     }
 
     // Calculate available balance
@@ -229,7 +229,7 @@ export class MatchService {
       currentBidder: null,
       lastUpdateAt: Date.now(),
     }
-    await redis.setWithExpiry(`match:${matchId}`, JSON.stringify(roomState), MATCH_TIMEOUT)
+    await redisHelpers.setWithExpiry(`match:${matchId}`, JSON.stringify(roomState), MATCH_TIMEOUT / 1000)
 
     logger.info({ matchId, player1Id: match.player1Id, player2Id }, 'Match started')
 

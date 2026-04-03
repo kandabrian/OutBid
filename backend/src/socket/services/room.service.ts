@@ -180,11 +180,8 @@ export class RoomService {
    */
   async getActiveMatches(): Promise<string[]> {
     try {
-      // Scan for all match:* keys in Redis
-      const matches: string[] = []
-      const cursor = await redis.scan(0, 'MATCH', 'match:*', 100)
-      // This is simplified - actual implementation would iterate through scan results
-      return matches
+      // For now return empty array - in production use redis.keys('match:*')
+      return []
     } catch (err) {
       logger.error({ error: err }, 'Failed to get active matches')
       return []
