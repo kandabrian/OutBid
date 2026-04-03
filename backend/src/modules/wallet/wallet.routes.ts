@@ -1,6 +1,23 @@
+/**
+ * Wallet module routes
+ */
+
 import { FastifyInstance } from 'fastify'
+import {
+  getBalance,
+  initiateDeposit,
+  initiateWithdrawal,
+  getTransactionHistory,
+} from './wallet.controller'
 
 export async function walletRoutes(app: FastifyInstance) {
-  app.get('/balance', async (req, reply) => reply.send({ message: 'balance — TODO' }))
-  app.post('/deposit', async (req, reply) => reply.send({ message: 'deposit — TODO' }))
+  // All wallet routes require authentication
+  app.get('/balance', { onRequest: [app.authenticate] }, getBalance)
+  app.post('/deposit', { onRequest: [app.authenticate] }, initiateDeposit)
+  app.post('/withdraw', { onRequest: [app.authenticate] }, initiateWithdrawal)
+  app.get(
+    '/transactions',
+    { onRequest: [app.authenticate] },
+    getTransactionHistory
+  )
 }
