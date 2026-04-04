@@ -1,50 +1,115 @@
 /**
  * Payment module routes
+ * Handles payment initiation, webhooks, and transaction status
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import {
+  initiateStripeIntent,
+  handleStripeWebhook,
+  initiateMpesaDeposit,
+  handlePaystackWebhook,
+  initiateCryptoDeposit,
+  getPaymentStatus,
+  getTransactionHistory,
+  initiateWithdrawal,
+} from './payment.controller'
 
 export async function paymentRoutes(app: FastifyInstance) {
-  // Stripe payment intent
+  // =========================================================================
+  // Stripe Payment Routes
+  // =========================================================================
+
+  /**
+   * Create Stripe payment intent
+   * POST /api/v1/payment/stripe/intent
+   * Auth: Required (JWT)
+   */
   app.post(
     '/stripe/intent',
     { onRequest: [app.authenticate] },
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      reply.send({ message: 'Create Stripe intent — TODO' })
-    }
+    initiateStripeIntent
   )
 
-  // Stripe webhook
-  app.post(
-    '/webhook/stripe',
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      reply.send({ message: 'Stripe webhook — TODO' })
-    }
-  )
+  /**
+   * Stripe webhook for charge events
+   * POST /api/v1/payment/webhook/stripe
+   * Auth: None (webhook signature verification)
+   */
+  app.post('/webhook/stripe', handleStripeWebhook)
 
-  // M-Pesa initiation
+  // =========================================================================
+  // M-Pesa Payment Routes (via Paystack)
+  // =========================================================================
+
+  /**
+   * Initiate M-Pesa deposit
+   * POST /api/v1/payment/mpesa/initiate
+   * Auth: Required (JWT)
+   */
   app.post(
     '/mpesa/initiate',
     { onRequest: [app.authenticate] },
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      reply.send({ message: 'Initiate M-Pesa — TODO' })
-    }
+    initiateMpesaDeposit
   )
 
-  // Paystack webhook
-  app.post(
-    '/webhook/paystack',
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      reply.send({ message: 'Paystack webhook — TODO' })
-    }
-  )
+  /**
+   * Paystack webhook for M-Pesa charge events
+   * POST /api/v1/payment/webhook/paystack
+   * Auth: None (webhook signature verification)
+   */
+  app.post('/webhook/paystack', handlePaystackWebhook)
 
-  // Crypto deposit
+  // =========================================================================
+  // Crypto Payment Routes (via Thirdweb)
+  // =========================================================================
+
+  /**
+   * Get deposit wallet address for crypto
+   * POST /api/v1/payment/crypto/address
+   * Auth: Required (JWT)
+   */
   app.post(
     '/crypto/address',
     { onRequest: [app.authenticate] },
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      reply.send({ message: 'Get crypto address — TODO' })
-    }
+    initiateCryptoDeposit
+  )
+
+  // =========================================================================
+  // Transaction Management Routes
+  // =========================================================================
+
+  /**
+   * Get payment transaction status
+   * GET /api/v1/payment/:transactionId/status
+   * Auth: Required (JWT)
+   */
+  app.get(
+    '/:transactionId/status',
+    { onRequest: [app.authenticate] },
+    getPaymentStatus
+  )
+
+  /**
+   * Get transaction history with pagination
+   * GET /api/v1/payment/history?page=1&limit=50
+   * Auth: Required (JWT)
+   */
+  app.get(
+    '/history',
+    { onRequest: [app.authenticate] },
+    getTransactionHistory
+  )
+
+  /**
+   * Initiate withdrawal
+   * POST /api/v1/payment/withdrawal
+   * Auth: Required (JWT)
+   */
+  app.post(
+    '/withdrawal',
+    { onRequest: [app.authenticate] },
+    initiateWithdrawal
   )
 }
+

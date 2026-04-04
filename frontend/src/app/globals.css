@@ -1,1 +1,146 @@
 @import "tailwindcss";
+
+/* Global styles */
+* {
+  @apply box-border;
+}
+
+html {
+  @apply scroll-smooth;
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-slate-950 text-slate-50 font-sans antialiased;
+  /* Smooth scrolling for all elements */
+  scroll-behavior: smooth;
+}
+
+/* Typography defaults */
+h1 {
+  @apply text-4xl font-extrabold leading-tight;
+}
+
+h2 {
+  @apply text-3xl font-bold leading-snug;
+}
+
+h3 {
+  @apply text-2xl font-semibold;
+}
+
+h4 {
+  @apply text-xl font-semibold;
+}
+
+p {
+  @apply text-base leading-relaxed text-slate-300;
+}
+
+a {
+  @apply text-indigo-400 hover:text-indigo-300 transition-colors;
+}
+
+/* Selection */
+::selection {
+  @apply bg-indigo-600 text-white;
+}
+
+::-moz-selection {
+  @apply bg-indigo-600 text-white;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700 hover:bg-slate-600 rounded-full;
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  @apply outline-2 outline-indigo-500 outline-offset-2;
+}
+
+/* Utility classes */
+.truncate-ellipsis {
+  @apply truncate;
+}
+
+.glass-effect {
+  @apply bg-slate-800/60 backdrop-blur-md border border-slate-700/50;
+}
+
+.gradient-primary {
+  @apply bg-gradient-to-r from-indigo-600 to-pink-600;
+}
+
+.gradient-text {
+  @apply bg-gradient-to-r from-indigo-400 to-pink-400 bg-clip-text text-transparent;
+}
+
+/* Animations */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+.animate-slide-out {
+  animation: slide-out 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
