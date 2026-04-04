@@ -548,39 +548,3 @@ export class PaymentService {
           relatedTransactionId: transaction!.id,
           description: `Platform fee for M-Pesa deposit`,
           createdAt: new Date(),
-        })
-      }
-    })
-    logger.info(
-      { transactionId: transaction.id, userId: transaction.userId, amount: creditAmount },
-      'Paystack charge processed and wallet credited'
-    )
-  }
-  /**
-   * Handle failed Paystack charge
-   */
-  private async handlePaystackChargeFailed(data: any): Promise<void> {
-    const reference = data.reference
-    const failureReason = data.gateway_response || 'Payment failed'
-    const [transaction] = await db
-      .select()
-      .from(paymentTransactions)
-      .where(eq(paymentTransactions.providerId, reference))
-    if (!transaction) {
-      logger.warn({ reference }, 'Paystack charge failed but transaction not found')
-      return
-    }
-    await db
-      .update(paymentTransactions)
-      .set({
-        status: PaymentStatus.FAILED,
-        failureReason,
-        completedAt: new Date(),
-      })
-      .where(eq(paymentTransactions.id, transaction.id))
-    logger.info(
-      { transactionId: transaction.id, userId: transaction.userId, reason: failureReason },
-      'Paystack charge failed'
-    )
-  }
-}
