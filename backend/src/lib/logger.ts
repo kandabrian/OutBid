@@ -43,7 +43,7 @@ export const createRequestLogger = () => {
     const start = Date.now()
     req.log = logger.child({ requestId: req.id })
 
-    reply.addHook('onResponse', (req: any, reply: any, done: Function) => {
+    reply.then(() => {
       const duration = Date.now() - start
       req.log[reply.statusCode >= 400 ? 'warn' : 'info'](
         {
@@ -55,7 +55,31 @@ export const createRequestLogger = () => {
         },
         `${req.method} ${req.url}`
       )
-      done()
     })
   }
+}
+
+/**
+ * Fastify plugin for request logging
+ * Registers onResponse hook at the server level (correct approach)
+ */
+export const requestLoggerPlugin = async (fastify: any) => {
+  fastify.addHook('onRequest', async (req: any) => {
+    req.startTime = Date.now()
+    req.log = logger.child({ requestId: req.id })
+  })
+
+  fastify.addHook('onResponse', async (req: any, reply: any) => {
+    const duration = Date.now() - (req.startTime || Date.now())
+    req.log[reply.statusCode >= 400 ? 'warn' : 'info'](
+      {
+        method: req.method,
+        path: req.url,
+        statusCode: reply.statusCode,
+        duration: `${duration}ms`,
+        userAgent: req.headers['user-agent'],
+      },
+      `${req.method} ${req.url}`
+    )
+  })
 }

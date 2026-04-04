@@ -4,7 +4,7 @@ import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
 import { registerRoutes } from './routes'
 import { setupErrorHandler } from './lib/errorHandler'
-import { createRequestLogger } from './lib/logger'
+import { requestLoggerPlugin } from './lib/logger'
 import { verifyJWT } from './modules/auth/auth.middleware'
 
 export async function buildApp() {
@@ -28,7 +28,7 @@ export async function buildApp() {
   app.decorate('authenticate', verifyJWT)
 
   // Request logging
-  app.addHook('onRequest', await createRequestLogger())
+  await app.register(requestLoggerPlugin)
 
   // Global error handler
   setupErrorHandler(app)
