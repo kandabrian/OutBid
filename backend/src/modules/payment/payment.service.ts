@@ -548,3 +548,163 @@ export class PaymentService {
           relatedTransactionId: transaction!.id,
           description: `Platform fee for M-Pesa deposit`,
           createdAt: new Date(),
+        })
+      }
+    })
+
+    logger.info(
+      { transactionId: transaction.id, userId: transaction.userId, amount: creditAmount },
+      'Paystack charge processed and wallet credited'
+    )
+  }
+
+  /**
+   * Handle failed Paystack charge (M-Pesa)
+   */
+  private async handlePaystackChargeFailed(data: any): Promise<void> {
+    const reference = data.reference
+    const failureReason = data.reason || 'Payment failed'
+
+    let [transaction] = await db
+      .select()
+      .from(paymentTransactions)
+      .where(eq(paymentTransactions.providerId, reference))
+
+    if (!transaction) {
+      logger.warn({ reference }, 'Paystack charge failed but transaction not found')
+      return
+    }
+
+    await db
+      .update(paymentTransactions)
+      .set({ status: PaymentStatus.FAILED, failureReason, completedAt: new Date() })
+      .where(eq(paymentTransactions.id, transaction.id))
+
+    logger.info(
+      { transactionId: transaction.id, userId: transaction.userId, reason: failureReason },
+      'Paystack charge failed'
+    )
+  }
+
+  /**
+   * Handle Crypto deposit confirmation
+   * Initiate withdrawal to user's bank account or crypto wallet
+   */
+  async initiateWithdrawal(
+    userId: string,
+    amount: number,
+    provider: PaymentProvider
+  ): Promise<{ transactionId: string; status: PaymentStatus }> {
+    const validation = this.validateAmount(amount)
+    if (!validation.isValid) {
+      throw new ValidationError(validation.reason!, {
+        minAmount: validation.minAmount,
+        maxAmount: validation.maxAmount,
+      })
+    }
+
+    const [wallet] = await db.select().from(wallets).where(eq(wallets.userId, userId))
+    if (!wallet) {
+      throw new PaymentError('WALLET_NOT_FOUND', 'User wallet not found')
+    }
+
+    if (wallet.balance < amount) {
+      throw new ValidationError('Insufficient balance for withdrawal')
+    }
+
+    const transactionId = randomUUID()
+
+    await db.transaction(async (tx) => {
+      // Create withdrawal transaction
+      await tx.insert(paymentTransactions).values({
+        id: transactionId,
+        userId,
+        amount,
+        method: provider.toLowerCase(),
+        provider,
+        status: PaymentStatus.PENDING,
+        direction: PaymentDirection.OUTBOUND,
+        metadata: { initiationTime: new Date().toISOString() },
+      })
+
+      // Deduct from wallet balance (held in escrow)
+      await tx
+        .update(wallets)
+        .set({ balance: sql`${wallets.balance} - ${amount}`, updatedAt: new Date() })
+        .where(eq(wallets.userId, userId))
+
+      // Record ledger entry
+      await tx.insert(walletLedger).values({
+        id: randomUUID(),
+        userId,
+        amount: -amount,
+        type: 'withdrawal',
+        relatedTransactionId: transactionId,
+        description: `Withdrawal to ${provider} (${transactionId})`,
+        createdAt: new Date(),
+      })
+    })
+
+    logger.info(
+      { userId, amount, provider, transactionId },
+      'Withdrawal initiated'
+    )
+
+    return { transactionId, status: PaymentStatus.PENDING }
+  }
+
+  /**
+   * Mark withdrawal as completed (called by admin/backend after payout)
+   */
+  async completeWithdrawal(transactionId: string): Promise<void> {
+    await db
+      .update(paymentTransactions)
+      .set({ status: PaymentStatus.COMPLETED, completedAt: new Date() })
+      .where(eq(paymentTransactions.id, transactionId))
+
+    logger.info({ transactionId }, 'Withdrawal completed')
+  }
+
+  /**
+   * Mark payment as failed
+   */
+  async failPayment(transactionId: string, reason: string): Promise<void> {
+    const [transaction] = await db
+      .select()
+      .from(paymentTransactions)
+      .where(eq(paymentTransactions.id, transactionId))
+
+    if (!transaction) {
+      throw new PaymentError('TRANSACTION_NOT_FOUND', 'Payment transaction not found')
+    }
+
+    // If withdrawal, refund the balance
+    if (transaction.direction === PaymentDirection.OUTBOUND) {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(wallets)
+          .set({ balance: sql`${wallets.balance} + ${transaction.amount}`, updatedAt: new Date() })
+          .where(eq(wallets.userId, transaction.userId))
+
+        await tx.insert(walletLedger).values({
+          id: randomUUID(),
+          userId: transaction.userId,
+          amount: transaction.amount,
+          type: 'withdrawal_refund',
+          relatedTransactionId: transactionId,
+          description: `Refund for failed withdrawal`,
+          createdAt: new Date(),
+        })
+      })
+    }
+
+    await db
+      .update(paymentTransactions)
+      .set({ status: PaymentStatus.FAILED, failureReason: reason, completedAt: new Date() })
+      .where(eq(paymentTransactions.id, transactionId))
+
+    logger.info({ transactionId, reason }, 'Payment marked as failed')
+  }
+}
+
+export const paymentService = new PaymentService()
