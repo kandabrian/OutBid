@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Card, Button, Input } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -10,7 +11,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(false)
-  const { setUser } = useAuthStore()
+  const { setUser, setToken } = useAuthStore()
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -18,21 +20,30 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-      // Mock login
+      const data = await res.json()
+
+      if (!res.ok) {
+        setErrors({ form: data.error?.message || 'Login failed. Please try again.' })
+        return
+      }
+
+      setToken(data.token)
       setUser({
-        id: 'user-123',
-        username: email.split('@')[0],
-        email,
+        id: data.user.id,
+        username: data.user.username,
+        email: data.user.email,
         isGuest: false,
       })
 
-      // Redirect would happen here
-      console.log('Login successful')
+      router.push('/wallet')
     } catch (err) {
-      setErrors({ form: 'Login failed. Please try again.' })
+      setErrors({ form: 'Network error. Please try again.' })
     } finally {
       setIsLoading(false)
     }
@@ -71,13 +82,7 @@ export default function LoginPage() {
               required
             />
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              isLoading={isLoading}
-              className="w-full"
-            >
+            <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full">
               Sign In
             </Button>
           </form>

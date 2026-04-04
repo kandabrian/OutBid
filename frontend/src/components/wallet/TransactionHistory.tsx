@@ -3,7 +3,7 @@
  * Features: Pagination, filtering, sorting
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, Badge } from '../ui'
 
 type TransactionType = 'deposit' | 'withdrawal' | 'win' | 'loss' | 'fee'
@@ -64,6 +64,9 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   isLoading = false,
 }) => {
   const [page, setPage] = useState(0)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => { setIsMounted(true) }, [])
   const itemsPerPage = 10
   const paginatedTx = transactions.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
 
@@ -104,12 +107,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                     )}
                   </div>
                   <p className="text-sm text-slate-400 truncate">{tx.description}</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {tx.timestamp.toLocaleDateString()} at{' '}
-                    {tx.timestamp.toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                  <p className="text-xs text-slate-500 mt-1" suppressHydrationWarning>
+                    {isMounted
+                      ? `${tx.timestamp.toLocaleDateString()} at ${tx.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                      : tx.timestamp.toISOString().slice(0, 16).replace('T', ' at ')}
                   </p>
                 </div>
 
